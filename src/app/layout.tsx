@@ -4,8 +4,8 @@ import { AppProvider } from '@/lib/store';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'RankInsight - Ranking de Concursos',
-  description: 'Consulta de ranking de concurso público',
+  title: 'RANKING GCM - Classificação Oficial',
+  description: 'Portal de acompanhamento do Ranking GCM e classificação da T4',
 };
 
 export default function RootLayout({

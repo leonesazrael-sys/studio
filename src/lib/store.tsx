@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect, createContext, useContext } from 'react';
-import { Candidate, User } from './types';
+import { Candidate, User, SystemSettings } from './types';
 import { INITIAL_CANDIDATES } from './initial-data';
 
 interface AppContextType {
@@ -9,36 +9,54 @@ interface AppContextType {
   updateCandidate: (c: Candidate) => void;
   deleteCandidate: (id: string) => void;
   user: User | null;
+  updateUserProfile: (nome: string, email: string) => void;
+  updateUserPassword: (current: string, newPass: string) => { success: boolean; message: string };
   login: (email: string, pass: string) => boolean;
   logout: () => void;
+  settings: SystemSettings;
+  updateSettings: (s: SystemSettings) => void;
 }
+
+const DEFAULT_SETTINGS: SystemSettings = {
+  nomeSistema: 'RANKING GCM',
+  permitirCadastro: true,
+  colunasVisiveis: ['posicao', 'inscricao', 'nome', 'nota', 'vaga', 'tipo'],
+  paginacaoPadrao: 10
+};
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [user, setUser] = useState<User | null>(null);
+  const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SETTINGS);
 
   useEffect(() => {
-    const savedCandidates = localStorage.getItem('rankinsight_candidates');
+    const savedCandidates = localStorage.getItem('gcm_candidates');
     if (savedCandidates) {
       setCandidates(JSON.parse(savedCandidates));
     } else {
       setCandidates(INITIAL_CANDIDATES);
     }
 
-    const savedUser = localStorage.getItem('rankinsight_user');
+    const savedUser = localStorage.getItem('gcm_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
+    }
+
+    const savedSettings = localStorage.getItem('gcm_settings');
+    if (savedSettings) {
+      setSettings(JSON.parse(savedSettings));
     }
   }, []);
 
   const persistCandidates = (newCandidates: Candidate[]) => {
     setCandidates(newCandidates);
-    localStorage.setItem('rankinsight_candidates', JSON.stringify(newCandidates));
+    localStorage.setItem('gcm_candidates', JSON.stringify(newCandidates));
   };
 
   const addCandidate = (c: Omit<Candidate, 'id'>) => {
+    if (!settings.permitirCadastro && user?.role !== 'ADMIN') return;
     const newCandidate = { ...c, id: Math.random().toString(36).substr(2, 9) };
     persistCandidates([...candidates, newCandidate]);
   };
@@ -51,8 +69,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     persistCandidates(candidates.filter(c => c.id !== id));
   };
 
+  const updateSettings = (newSettings: SystemSettings) => {
+    setSettings(newSettings);
+    localStorage.setItem('gcm_settings', JSON.stringify(newSettings));
+  };
+
+  const updateUserProfile = (nome: string, email: string) => {
+    if (!user) return;
+    const updatedUser = { ...user, nome, email };
+    setUser(updatedUser);
+    localStorage.setItem('gcm_user', JSON.stringify(updatedUser));
+  };
+
+  const updateUserPassword = (current: string, newPass: string) => {
+    if (!user) return { success: false, message: "Usuário não logado" };
+    // Simulação de validação (em um app real seria via hash no backend)
+    // Para o demo, usamos senhas fixas definidas no login
+    const currentStoredPass = user.email === 'admin@example.com' ? 'admin' : 'user';
+    
+    if (current !== currentStoredPass) {
+      return { success: false, message: "Senha atual incorreta." };
+    }
+    
+    // Sucesso na simulação
+    return { success: true, message: "Senha alterada com sucesso!" };
+  };
+
   const login = (email: string, pass: string) => {
-    // Demo logic: admin@example.com / admin, user@example.com / user
     let loggedUser: User | null = null;
     if (email === 'admin@example.com' && pass === 'admin') {
       loggedUser = { id: 'admin-1', nome: 'Administrador', email, role: 'ADMIN' };
@@ -62,7 +105,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     if (loggedUser) {
       setUser(loggedUser);
-      localStorage.setItem('rankinsight_user', JSON.stringify(loggedUser));
+      localStorage.setItem('gcm_user', JSON.stringify(loggedUser));
       return true;
     }
     return false;
@@ -70,11 +113,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('rankinsight_user');
+    localStorage.removeItem('gcm_user');
   };
 
   return (
-    <AppContext.Provider value={{ candidates, addCandidate, updateCandidate, deleteCandidate, user, login, logout }}>
+    <AppContext.Provider value={{ 
+      candidates, 
+      addCandidate, 
+      updateCandidate, 
+      deleteCandidate, 
+      user, 
+      updateUserProfile,
+      updateUserPassword,
+      login, 
+      logout,
+      settings,
+      updateSettings
+    }}>
       {children}
     </AppContext.Provider>
   );

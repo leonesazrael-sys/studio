@@ -1,7 +1,8 @@
 "use client"
 import { useApp } from '@/lib/store';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { 
   SidebarProvider, 
   Sidebar, 
@@ -17,18 +18,28 @@ import {
 import { 
   LayoutDashboard, 
   LogOut, 
-  User, 
+  User as UserIcon, 
   ShieldCheck, 
-  Users,
+  BarChart3,
   Search,
-  Settings
+  Settings,
+  ChevronRight
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useApp();
+  const { user, logout, settings } = useApp();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!user) {
@@ -38,6 +49,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!user) return null;
 
+  const menuItems = [
+    { name: 'Ranking Principal', icon: LayoutDashboard, path: '/dashboard', role: 'USER' },
+    { name: 'Pesquisar', icon: Search, path: '/dashboard/search', role: 'USER' },
+    { name: 'Estatísticas', icon: BarChart3, path: '/dashboard/stats', role: 'USER' },
+    { name: 'Meu Perfil', icon: UserIcon, path: '/dashboard/profile', role: 'USER' },
+    { name: 'Ajustes', icon: Settings, path: '/dashboard/settings', role: 'ADMIN' },
+  ];
+
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon" className="border-r-0">
@@ -46,35 +65,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="bg-secondary p-1.5 rounded-lg">
               <ShieldCheck className="w-6 h-6 text-primary" />
             </div>
-            <span className="font-bold text-lg text-white group-data-[collapsible=icon]:hidden">RankInsight</span>
+            <span className="font-bold text-lg text-white group-data-[collapsible=icon]:hidden">
+              {settings.nomeSistema}
+            </span>
           </div>
         </SidebarHeader>
         <SidebarContent className="bg-primary">
           <SidebarMenu className="px-2 pt-4">
-            <SidebarMenuItem>
-              <SidebarMenuButton isActive tooltip="Ranking Principal" className="text-white hover:bg-white/10">
-                <LayoutDashboard />
-                <span>Ranking Principal</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Pesquisar" className="text-white hover:bg-white/10">
-                <Search />
-                <span>Pesquisar</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Estatísticas" className="text-white hover:bg-white/10">
-                <Users />
-                <span>Estatísticas</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Configurações" className="text-white hover:bg-white/10">
-                <Settings />
-                <span>Ajustes</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            {menuItems.map((item) => {
+              if (item.role === 'ADMIN' && user.role !== 'ADMIN') return null;
+              const isActive = pathname === item.path;
+              return (
+                <SidebarMenuItem key={item.path}>
+                  <SidebarMenuButton 
+                    isActive={isActive} 
+                    tooltip={item.name} 
+                    className={`text-white hover:bg-white/10 ${isActive ? 'bg-white/20' : ''}`}
+                    asChild
+                  >
+                    <Link href={item.path}>
+                      <item.icon />
+                      <span>{item.name}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="bg-primary p-2">
@@ -99,19 +115,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <SidebarTrigger />
             <Separator orientation="vertical" className="h-4" />
             <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-widest group-data-[collapsible=icon]:ml-4">
-              Dashboard / Ranking
+              Dashboard / {menuItems.find(i => i.path === pathname)?.name || 'Início'}
             </h2>
           </div>
           
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
               <p className="text-sm font-semibold leading-none">{user.nome}</p>
-              <p className="text-xs text-muted-foreground mt-1">{user.role === 'ADMIN' ? 'Administrador' : 'Usuário Comum'}</p>
+              <p className="text-xs text-muted-foreground mt-1">{user.role === 'ADMIN' ? 'Administrador' : 'Usuário'}</p>
             </div>
-            <Avatar className="h-9 w-9 border-2 border-primary/10">
-              <AvatarImage src={`https://picsum.photos/seed/${user.id}/100`} />
-              <AvatarFallback>{user.nome.charAt(0)}</AvatarFallback>
-            </Avatar>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Avatar className="h-9 w-9 border-2 border-primary/10 cursor-pointer hover:opacity-80 transition-opacity">
+                  <AvatarImage src={`https://picsum.photos/seed/${user.id}/100`} />
+                  <AvatarFallback>{user.nome.charAt(0)}</AvatarFallback>
+                </Avatar>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
+                  <UserIcon className="mr-2 h-4 w-4" />
+                  <span>Meu Perfil</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={logout} className="text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sair</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
         

@@ -1,8 +1,7 @@
 "use client"
 import { useState, useMemo } from 'react';
 import { useApp } from '@/lib/store';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   Table, 
@@ -13,17 +12,12 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { 
-  Search, 
-  Filter, 
   Plus, 
-  UserPlus, 
-  Users,
-  Trophy,
-  ArrowUpDown,
   MoreHorizontal,
   Edit2,
   Trash2,
-  GraduationCap
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -51,28 +45,37 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
 
 export default function RankingPage() {
-  const { candidates, user, deleteCandidate } = useApp();
-  const [searchTerm, setSearchTerm] = useState('');
+  const { candidates, user, deleteCandidate, settings } = useApp();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(settings.paginacaoPadrao || 10);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState<any>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const filteredCandidates = useMemo(() => {
-    return candidates.filter(c => 
-      c.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.inscricao.includes(searchTerm)
-    ).sort((a, b) => a.posicao_atual - b.posicao_atual);
-  }, [candidates, searchTerm]);
+  const sortedCandidates = useMemo(() => {
+    // Remove duplicatas por inscrição e ordena por posição
+    const unique = candidates.filter((c, index, self) =>
+      index === self.findIndex((t) => t.inscricao === c.inscricao)
+    );
+    return unique.sort((a, b) => a.posicao_atual - b.posicao_atual);
+  }, [candidates]);
 
-  const stats = useMemo(() => ({
-    total: candidates.length,
-    pcd: candidates.filter(c => c.tipo?.toUpperCase() === 'PCD').length,
-    subJudice: candidates.filter(c => c.tipo?.toLowerCase().includes('sub judice')).length,
-    media: (candidates.reduce((acc, c) => acc + c.nota_final, 0) / candidates.length || 0).toFixed(2)
-  }), [candidates]);
+  const paginatedCandidates = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedCandidates.slice(start, start + pageSize);
+  }, [sortedCandidates, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(sortedCandidates.length / pageSize);
 
   const handleDelete = () => {
     if (deletingId) {
@@ -84,101 +87,28 @@ export default function RankingPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-white border-none shadow-sm overflow-hidden relative">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground uppercase">Candidatos Total</p>
-                <h3 className="text-3xl font-bold mt-1 text-primary">{stats.total}</h3>
-              </div>
-              <div className="bg-primary/10 p-3 rounded-xl">
-                <Users className="w-6 h-6 text-primary" />
-              </div>
-            </div>
-            <div className="absolute bottom-0 left-0 w-full h-1 bg-primary/20"></div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-none shadow-sm overflow-hidden relative">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground uppercase">PCD / Especiais</p>
-                <h3 className="text-3xl font-bold mt-1 text-orange-600">{stats.pcd}</h3>
-              </div>
-              <div className="bg-orange-100 p-3 rounded-xl">
-                <UserPlus className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-            <div className="absolute bottom-0 left-0 w-full h-1 bg-orange-200"></div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-none shadow-sm overflow-hidden relative">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground uppercase">Sub Judice</p>
-                <h3 className="text-3xl font-bold mt-1 text-amber-600">{stats.subJudice}</h3>
-              </div>
-              <div className="bg-amber-100 p-3 rounded-xl">
-                <GraduationCap className="w-6 h-6 text-amber-600" />
-              </div>
-            </div>
-            <div className="absolute bottom-0 left-0 w-full h-1 bg-amber-200"></div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-none shadow-sm overflow-hidden relative">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground uppercase">Média de Nota</p>
-                <h3 className="text-3xl font-bold mt-1 text-secondary">{stats.media}</h3>
-              </div>
-              <div className="bg-secondary/10 p-3 rounded-xl">
-                <Trophy className="w-6 h-6 text-secondary" />
-              </div>
-            </div>
-            <div className="absolute bottom-0 left-0 w-full h-1 bg-secondary/20"></div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-xl shadow-sm">
-        <div className="relative w-full max-w-lg">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="Pesquisar por nome ou inscrição..." 
-            className="pl-10 h-11 bg-slate-50 border-slate-200 rounded-lg focus-visible:ring-secondary"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-primary">RANKING DA T4</h1>
+          <p className="text-muted-foreground">Listagem oficial de classificação por nota final.</p>
         </div>
         
-        <div className="flex gap-2 w-full md:w-auto">
-          <Button variant="outline" className="flex-1 md:flex-none border-slate-200 h-11">
-            <Filter className="w-4 h-4 mr-2" />
-            Filtrar
-          </Button>
-          {user?.role === 'ADMIN' && (
-            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-              <DialogTrigger asChild>
-                <Button className="flex-1 md:flex-none h-11 bg-secondary text-primary hover:bg-secondary/90">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Novo Registro
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Adicionar Candidato</DialogTitle>
-                </DialogHeader>
-                <CandidateForm onSuccess={() => setIsAddOpen(false)} />
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
+        {user?.role === 'ADMIN' && settings.permitirCadastro && (
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogTrigger asChild>
+              <Button className="h-11 bg-secondary text-primary hover:bg-secondary/90 shadow-lg">
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Registro
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Adicionar Candidato</DialogTitle>
+              </DialogHeader>
+              <CandidateForm onSuccess={() => setIsAddOpen(false)} />
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <Card className="border-none shadow-sm overflow-hidden bg-white">
@@ -196,8 +126,8 @@ export default function RankingPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredCandidates.length > 0 ? (
-                filteredCandidates.map((c) => (
+              {paginatedCandidates.length > 0 ? (
+                paginatedCandidates.map((c) => (
                   <TableRow key={c.id} className="group hover:bg-slate-50 transition-colors">
                     <TableCell className="text-center">
                       <div className={`
@@ -253,7 +183,7 @@ export default function RankingPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={7} className="h-32 text-center text-muted-foreground italic">
-                    Nenhum candidato encontrado com os filtros aplicados.
+                    Nenhum candidato cadastrado.
                   </TableCell>
                 </TableRow>
               )}
@@ -261,6 +191,68 @@ export default function RankingPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Pagination Controls */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl shadow-sm">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Itens por página:</span>
+          <Select value={pageSize.toString()} onValueChange={(v) => { setPageSize(parseInt(v)); setCurrentPage(1); }}>
+            <SelectTrigger className="w-20 h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-sm text-muted-foreground ml-4">
+            Mostrando {Math.min(sortedCandidates.length, (currentPage - 1) * pageSize + 1)} - {Math.min(sortedCandidates.length, currentPage * pageSize)} de {sortedCandidates.length}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="h-9 w-9"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum;
+              if (totalPages <= 5) pageNum = i + 1;
+              else if (currentPage <= 3) pageNum = i + 1;
+              else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+              else pageNum = currentPage - 2 + i;
+
+              return (
+                <Button
+                  key={pageNum}
+                  variant={currentPage === pageNum ? "default" : "outline"}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className="h-9 w-9 p-0"
+                >
+                  {pageNum}
+                </Button>
+              );
+            })}
+          </div>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="h-9 w-9"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
 
       {/* Edit Dialog */}
       {editingCandidate && (

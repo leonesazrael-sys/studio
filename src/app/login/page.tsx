@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login } = useApp();
+  const { login, settings } = useApp();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -23,7 +23,7 @@ export default function LoginPage() {
     } else {
       toast({
         title: "Erro de autenticação",
-        description: "Email ou senha inválidos. Use admin@example.com / admin",
+        description: "Email ou senha inválidos.",
         variant: "destructive"
       });
     }
@@ -38,15 +38,17 @@ export default function LoginPage() {
               <ShieldCheck className="w-10 h-10 text-secondary" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-primary tracking-tight font-headline">RankInsight</h1>
-          <p className="text-muted-foreground">Sistema de Gestão de Ranking de Concursos</p>
+          <h1 className="text-3xl font-bold text-primary tracking-tight font-headline uppercase">
+            {settings.nomeSistema}
+          </h1>
+          <p className="text-muted-foreground italic">Portal Oficial do Candidato</p>
         </div>
 
-        <Card className="shadow-xl border-t-4 border-t-secondary">
+        <Card className="shadow-xl border-t-4 border-t-secondary bg-white">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold">Entrar</CardTitle>
+            <CardTitle className="text-2xl font-bold">Acesso ao Sistema</CardTitle>
             <CardDescription>
-              Utilize suas credenciais para acessar o sistema.
+              Insira suas credenciais para visualizar o ranking.
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>
@@ -63,9 +65,7 @@ export default function LoginPage() {
                 />
               </div>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Senha</Label>
-                </div>
+                <Label htmlFor="password">Senha</Label>
                 <Input 
                   id="password" 
                   type="password" 
@@ -77,17 +77,17 @@ export default function LoginPage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button type="submit" className="w-full h-11" size="lg">
-                <LogIn className="w-4 h-4 mr-2" />
-                Acessar Dashboard
+              <Button type="submit" className="w-full h-11 text-lg font-bold" size="lg">
+                <LogIn className="w-5 h-5 mr-2" />
+                ENTRAR
               </Button>
             </CardFooter>
           </form>
         </Card>
         
-        <div className="text-center text-sm text-muted-foreground mt-4">
-          <p>Dica: Admin: admin@example.com / admin</p>
-          <p>Usuário: user@example.com / user</p>
+        <div className="text-center text-sm text-muted-foreground mt-4 space-y-1">
+          <p>Dica: Admin (admin@example.com / admin)</p>
+          <p>Dica: Usuário (user@example.com / user)</p>
         </div>
       </div>
     </div>
