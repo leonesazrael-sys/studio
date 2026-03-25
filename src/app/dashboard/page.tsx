@@ -17,6 +17,7 @@ import {
   Filter, 
   Plus, 
   UserPlus, 
+  Users,
   Trophy,
   ArrowUpDown,
   MoreHorizontal,
