@@ -21,9 +21,7 @@ import {
   User as UserIcon, 
   ShieldCheck, 
   BarChart3,
-  Search,
-  Settings,
-  ChevronRight
+  Settings
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -51,7 +49,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const menuItems = [
     { name: 'Ranking Principal', icon: LayoutDashboard, path: '/dashboard', role: 'USER' },
-    { name: 'Pesquisar', icon: Search, path: '/dashboard/search', role: 'USER' },
     { name: 'Estatísticas', icon: BarChart3, path: '/dashboard/stats', role: 'USER' },
     { name: 'Meu Perfil', icon: UserIcon, path: '/dashboard/profile', role: 'USER' },
     { name: 'Ajustes', icon: Settings, path: '/dashboard/settings', role: 'ADMIN' },

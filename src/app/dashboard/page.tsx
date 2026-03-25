@@ -1,8 +1,9 @@
 "use client"
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/lib/store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { 
   Table, 
   TableBody, 
@@ -17,7 +18,10 @@ import {
   Edit2,
   Trash2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Search,
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -60,22 +64,42 @@ export default function RankingPage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState<any>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const { toast } = useToast();
 
-  const sortedCandidates = useMemo(() => {
-    // Remove duplicatas por inscrição e ordena por posição
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1); // Reset to first page on search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const sortedAndFilteredCandidates = useMemo(() => {
+    // 1. Remove duplicates
     const unique = candidates.filter((c, index, self) =>
       index === self.findIndex((t) => t.inscricao === c.inscricao)
     );
-    return unique.sort((a, b) => a.posicao_atual - b.posicao_atual);
-  }, [candidates]);
+
+    // 2. Apply search filter
+    const term = debouncedSearch.toLowerCase();
+    const filtered = term ? unique.filter(c => 
+      c.inscricao.toLowerCase().includes(term) || 
+      c.nome.toLowerCase().includes(term)
+    ) : unique;
+
+    // 3. Sort by position
+    return filtered.sort((a, b) => a.posicao_atual - b.posicao_atual);
+  }, [candidates, debouncedSearch]);
 
   const paginatedCandidates = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return sortedCandidates.slice(start, start + pageSize);
-  }, [sortedCandidates, currentPage, pageSize]);
+    return sortedAndFilteredCandidates.slice(start, start + pageSize);
+  }, [sortedAndFilteredCandidates, currentPage, pageSize]);
 
-  const totalPages = Math.ceil(sortedCandidates.length / pageSize);
+  const totalPages = Math.ceil(sortedAndFilteredCandidates.length / pageSize);
 
   const handleDelete = () => {
     if (deletingId) {
@@ -87,29 +111,56 @@ export default function RankingPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-primary">RANKING DA T4</h1>
-          <p className="text-muted-foreground">Listagem oficial de classificação por nota final.</p>
+          <p className="text-muted-foreground">Listagem oficial de classificação da quarta turma.</p>
         </div>
         
-        {user?.role === 'ADMIN' && settings.permitirCadastro && (
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger asChild>
-              <Button className="h-11 bg-secondary text-primary hover:bg-secondary/90 shadow-lg">
-                <Plus className="w-4 h-4 mr-2" />
-                Novo Registro
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Adicionar Candidato</DialogTitle>
-              </DialogHeader>
-              <CandidateForm onSuccess={() => setIsAddOpen(false)} />
-            </DialogContent>
-          </Dialog>
-        )}
+        <div className="flex items-center gap-3">
+          {user?.role === 'ADMIN' && settings.permitirCadastro && (
+            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+              <DialogTrigger asChild>
+                <Button className="h-11 bg-secondary text-primary hover:bg-secondary/90 shadow-lg">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Novo Registro
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Adicionar Candidato</DialogTitle>
+                </DialogHeader>
+                <CandidateForm onSuccess={() => setIsAddOpen(false)} />
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
+
+      {/* Integrated Search Bar */}
+      <Card className="border-none shadow-sm bg-white overflow-hidden sticky top-0 z-10 border-b">
+        <CardContent className="p-4 flex items-center gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input 
+              placeholder="Buscar por nome ou inscrição..." 
+              className="pl-10 h-11 bg-slate-50 border-none focus-visible:ring-secondary"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 hover:bg-slate-200"
+                onClick={() => setSearchTerm('')}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="border-none shadow-sm overflow-hidden bg-white">
         <CardContent className="p-0">
@@ -127,63 +178,104 @@ export default function RankingPage() {
             </TableHeader>
             <TableBody>
               {paginatedCandidates.length > 0 ? (
-                paginatedCandidates.map((c) => (
-                  <TableRow key={c.id} className="group hover:bg-slate-50 transition-colors">
-                    <TableCell className="text-center">
-                      <div className={`
-                        inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm
-                        ${c.posicao_atual <= 3 ? 'bg-secondary text-primary' : 'bg-slate-100 text-slate-600'}
-                      `}>
-                        {c.posicao_atual}
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{c.inscricao}</TableCell>
-                    <TableCell className="font-medium">{c.nome}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="font-bold bg-white text-primary border-primary/20">
-                        {c.nota_final.toFixed(2)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{c.posicao_lista_vaga}</TableCell>
-                    <TableCell>
-                      {c.tipo && (
-                        <Badge 
-                          className={`
-                            ${c.tipo.toUpperCase() === 'PCD' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-amber-500 hover:bg-amber-600'}
-                            text-white border-none font-semibold text-[10px] tracking-wider
-                          `}
-                        >
-                          {c.tipo}
-                        </Badge>
+                paginatedCandidates.map((c) => {
+                  const isLimitT4 = c.posicao_atual === 50;
+                  const isOutT4 = c.posicao_atual > 50;
+
+                  return (
+                    <div key={c.id} className="contents">
+                      <TableRow 
+                        className={`
+                          group transition-colors 
+                          ${isLimitT4 ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-slate-50'}
+                          ${c.posicao_atual % 2 === 0 && !isLimitT4 ? 'bg-slate-50/50' : ''}
+                        `}
+                      >
+                        <TableCell className="text-center">
+                          <div className={`
+                            inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm
+                            ${c.posicao_atual <= 3 ? 'bg-secondary text-primary' : isLimitT4 ? 'bg-yellow-400 text-yellow-900' : 'bg-slate-100 text-slate-600'}
+                          `}>
+                            {c.posicao_atual}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">{c.inscricao}</TableCell>
+                        <TableCell className="font-medium flex items-center gap-2">
+                          {c.nome}
+                          {isLimitT4 && (
+                            <Badge className="bg-yellow-500 text-white font-bold text-[10px] animate-pulse">
+                              LIMITE T4
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-bold bg-white text-primary border-primary/20">
+                            {c.nota_final.toFixed(2)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{c.posicao_lista_vaga}</TableCell>
+                        <TableCell>
+                          {c.tipo && (
+                            <Badge 
+                              className={`
+                                ${c.tipo.toUpperCase() === 'PCD' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}
+                                text-white border-none font-semibold text-[10px] tracking-wider
+                              `}
+                            >
+                              {c.tipo}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        {user?.role === 'ADMIN' && (
+                          <TableCell className="text-right pr-6">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-40">
+                                <DropdownMenuItem onClick={() => setEditingCandidate(c)}>
+                                  <Edit2 className="w-4 h-4 mr-2" />
+                                  Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive" onClick={() => setDeletingId(c.id)}>
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Excluir
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                      
+                      {/* Divider for T4 Limit */}
+                      {isLimitT4 && (
+                        <TableRow className="hover:bg-transparent">
+                          <TableCell colSpan={user?.role === 'ADMIN' ? 7 : 6} className="p-0">
+                            <div className="flex items-center gap-4 py-2 px-4 bg-slate-100/50 border-y border-slate-200">
+                              <div className="h-[1px] flex-1 bg-slate-300" />
+                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                <AlertCircle className="w-3 h-3" />
+                                A partir daqui, fora da T4
+                              </span>
+                              <div className="h-[1px] flex-1 bg-slate-300" />
+                            </div>
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </TableCell>
-                    {user?.role === 'ADMIN' && (
-                      <TableCell className="text-right pr-6">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem onClick={() => setEditingCandidate(c)}>
-                              <Edit2 className="w-4 h-4 mr-2" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" onClick={() => setDeletingId(c.id)}>
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))
+                    </div>
+                  );
+                })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground italic">
-                    Nenhum candidato cadastrado.
+                  <TableCell colSpan={7} className="h-48 text-center text-muted-foreground">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Search className="w-12 h-12 opacity-20" />
+                      <p className="font-medium">Nenhum candidato encontrado</p>
+                      <p className="text-sm">Tente ajustar seus termos de busca.</p>
+                      <Button variant="link" onClick={() => setSearchTerm('')}>Limpar busca</Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
@@ -208,50 +300,52 @@ export default function RankingPage() {
             </SelectContent>
           </Select>
           <span className="text-sm text-muted-foreground ml-4">
-            Mostrando {Math.min(sortedCandidates.length, (currentPage - 1) * pageSize + 1)} - {Math.min(sortedCandidates.length, currentPage * pageSize)} de {sortedCandidates.length}
+            Mostrando {Math.min(sortedAndFilteredCandidates.length, (currentPage - 1) * pageSize + 1)} - {Math.min(sortedAndFilteredCandidates.length, currentPage * pageSize)} de {sortedAndFilteredCandidates.length}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="icon" 
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="h-9 w-9"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <div className="flex items-center gap-1">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              let pageNum;
-              if (totalPages <= 5) pageNum = i + 1;
-              else if (currentPage <= 3) pageNum = i + 1;
-              else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
-              else pageNum = currentPage - 2 + i;
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="h-9 w-9"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) pageNum = i + 1;
+                else if (currentPage <= 3) pageNum = i + 1;
+                else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                else pageNum = currentPage - 2 + i;
 
-              return (
-                <Button
-                  key={pageNum}
-                  variant={currentPage === pageNum ? "default" : "outline"}
-                  onClick={() => setCurrentPage(pageNum)}
-                  className="h-9 w-9 p-0"
-                >
-                  {pageNum}
-                </Button>
-              );
-            })}
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className="h-9 w-9 p-0"
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="h-9 w-9"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
           </div>
-          <Button 
-            variant="outline" 
-            size="icon" 
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="h-9 w-9"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
+        )}
       </div>
 
       {/* Edit Dialog */}
