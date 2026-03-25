@@ -1,5 +1,5 @@
 "use client"
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, Fragment } from 'react';
 import { useApp } from '@/lib/store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -180,10 +180,9 @@ export default function RankingPage() {
               {paginatedCandidates.length > 0 ? (
                 paginatedCandidates.map((c) => {
                   const isLimitT4 = c.posicao_atual === 50;
-                  const isOutT4 = c.posicao_atual > 50;
-
+                  
                   return (
-                    <div key={c.id} className="contents">
+                    <Fragment key={c.id}>
                       <TableRow 
                         className={`
                           group transition-colors 
@@ -200,13 +199,15 @@ export default function RankingPage() {
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-xs">{c.inscricao}</TableCell>
-                        <TableCell className="font-medium flex items-center gap-2">
-                          {c.nome}
-                          {isLimitT4 && (
-                            <Badge className="bg-yellow-500 text-white font-bold text-[10px] animate-pulse">
-                              LIMITE T4
-                            </Badge>
-                          )}
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {c.nome}
+                            {isLimitT4 && (
+                              <Badge className="bg-yellow-500 text-white font-bold text-[10px] animate-pulse">
+                                LIMITE T4
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="font-bold bg-white text-primary border-primary/20">
@@ -264,7 +265,7 @@ export default function RankingPage() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </div>
+                    </Fragment>
                   );
                 })
               ) : (
